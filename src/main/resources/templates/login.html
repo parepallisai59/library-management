@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Library Login</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+        }
+
+        .login-container {
+            width: 400px;
+            margin: 70px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .login-container h2 {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .role-selection {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        .role-selection label {
+            cursor: pointer;
+        }
+
+        .login-container input[type="email"],
+        .login-container input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        .show-password {
+            margin-bottom: 15px;
+        }
+
+        .login-btn,
+        .forgot-btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .login-btn {
+            background: #007bff;
+            color: white;
+        }
+
+        .forgot-btn {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        .register-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .register-link a {
+            text-decoration: none;
+            color: #007bff;
+        }
+
+        #message {
+            text-align: center;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="login-container">
+
+    <h2>Library Management System</h2>
+
+    <div class="role-selection">
+
+        <label>
+            <input type="radio" name="role" value="USER" checked>
+            User
+        </label>
+
+        <label>
+            <input type="radio" name="role" value="ADMIN">
+            Admin
+        </label>
+
+    </div>
+
+    <form id="loginForm">
+
+        <label for="email">Username / Email</label>
+
+        <input
+            type="email"
+            id="email"
+            placeholder="Enter your email"
+            required
+        >
+
+        <label for="password">Password</label>
+
+        <input
+            type="password"
+            id="password"
+            placeholder="Enter your password"
+            required
+        >
+
+        <div class="show-password">
+            <label>
+                <input type="checkbox" id="showPassword">
+                Show Password
+            </label>
+        </div>
+
+        <button type="submit" class="login-btn">
+            Login
+        </button>
+
+        <button
+            type="button"
+            class="forgot-btn"
+            onclick="forgotPassword()">
+            Forgot Password
+        </button>
+
+    </form>
+
+    <div id="message"></div>
+
+    <div class="register-link">
+        New User?
+        <a href="/register">Register Here</a>
+    </div>
+
+</div>
+
+<script>
+
+    const loginForm = document.getElementById("loginForm");
+
+    const passwordInput = document.getElementById("password");
+
+    const showPassword = document.getElementById("showPassword");
+
+    const message = document.getElementById("message");
+
+
+    showPassword.addEventListener("change", function () {
+
+        if (this.checked) {
+            passwordInput.type = "text";
+        } else {
+            passwordInput.type = "password";
+        }
+
+    });
+
+
+    loginForm.addEventListener("submit", async function (event) {
+
+        event.preventDefault();
+
+        const email = document.getElementById("email").value;
+
+        const password = document.getElementById("password").value;
+
+        const selectedRole =
+            document.querySelector('input[name="role"]:checked').value;
+
+
+        try {
+
+            const response = await fetch("/users/login", {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    email: email,
+                    password: password
+                })
+
+            });
+
+
+            if (!response.ok) {
+
+                message.textContent =
+                    "Invalid email or password.";
+
+                return;
+            }
+
+
+            const data = await response.json();
+
+
+            if (!data || !data.role) {
+
+                message.textContent =
+                    "Invalid email or password.";
+
+                return;
+            }
+
+
+            if (data.role !== selectedRole) {
+
+                message.textContent =
+                    "Selected role does not match your account.";
+
+                return;
+            }
+
+
+            localStorage.setItem("userId", data.id);
+
+            localStorage.setItem("userName", data.name);
+
+            localStorage.setItem("userEmail", data.email);
+
+            localStorage.setItem("userRole", data.role);
+
+
+            message.textContent =
+                "Login successful!";
+
+
+            if (data.role === "ADMIN") {
+
+                window.location.href = "/admin";
+
+            } else if (data.role === "USER") {
+
+                window.location.href = "/user";
+
+            }
+
+        } catch (error) {
+
+            console.error(error);
+
+            message.textContent =
+                "Unable to connect to the server.";
+
+        }
+
+    });
+
+
+    async function forgotPassword() {
+
+        const email = document.getElementById("email").value.trim();
+        if (!email) {
+            message.style.color = "red";
+            message.textContent = "Enter your email address first, then click Forgot Password.";
+            return;
+        }
+
+        message.style.color = "#555";
+        message.textContent = "Sending reset link…";
+
+        try {
+            const res  = await fetch("/users/forgot-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email })
+            });
+            const data = await res.json();
+
+            if (data.resetUrl) {
+                // In production this URL would arrive by email.
+                // For now, redirect the user directly.
+                message.style.color = "green";
+                message.textContent = "Reset link generated. Redirecting…";
+                setTimeout(() => window.location.href = data.resetUrl, 1200);
+            } else {
+                message.style.color = "green";
+                message.textContent = data.message;
+            }
+        } catch (err) {
+            message.style.color = "red";
+            message.textContent = "Unable to connect to the server.";
+        }
+    }
+
+</script>
+
+</body>
+</html>

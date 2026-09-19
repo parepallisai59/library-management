@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Library Management</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        *{box-sizing:border-box;}
+        body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;}
+
+        /* ── Navbar ── */
+        .navbar{background:#1a1a2e;padding:14px 30px;display:flex;justify-content:space-between;align-items:center;}
+        .navbar h2{color:#e0e0e0;margin:0;font-size:20px;letter-spacing:.5px;}
+        .navbar a{color:#aaa;text-decoration:none;margin-left:22px;font-size:14px;transition:color .2s;}
+        .navbar a:hover{color:#fff;}
+
+        /* ── Layout ── */
+        .container{width:92%;max-width:1300px;margin:28px auto;}
+
+        /* ── Dashboard cards ── */
+        .dashboard{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:28px;}
+        .card{background:#fff;padding:24px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08);text-align:center;}
+        .card h3{margin:0 0 8px;font-size:13px;color:#777;text-transform:uppercase;letter-spacing:.5px;}
+        .card p{font-size:32px;font-weight:700;margin:0;color:#1a1a2e;}
+
+        /* ── Section panels ── */
+        .section{background:#fff;padding:26px 28px;margin-bottom:28px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08);}
+        .section h2{margin:0 0 18px;font-size:17px;color:#1a1a2e;border-bottom:2px solid #f0f0f0;padding-bottom:10px;}
+
+        /* ── Form inputs inside sections ── */
+        .section input[type=text],
+        .section input[type=number],
+        .section select{padding:10px 12px;margin:4px 6px 4px 0;border:1px solid #ddd;border-radius:6px;font-size:14px;outline:none;transition:border .2s;}
+        .section input:focus,.section select:focus{border-color:#1a1a2e;}
+        #searchBook{width:280px;}
+
+        /* ── Buttons ── */
+        .btn{padding:9px 16px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:opacity .2s;}
+        .btn:hover{opacity:.85;}
+        .btn-dark{background:#1a1a2e;color:#fff;}
+        .btn-warn{background:#f0ad4e;color:#fff;}
+        .btn-danger{background:#d9534f;color:#fff;}
+        .btn-success{background:#5cb85c;color:#fff;}
+        .btn-info{background:#5bc0de;color:#fff;}
+
+        /* ── Tables ── */
+        table{width:100%;border-collapse:collapse;margin-top:12px;}
+        th,td{border:1px solid #e8e8e8;padding:11px 13px;text-align:center;font-size:13px;}
+        th{background:#1a1a2e;color:#fff;font-weight:600;}
+        tr:nth-child(even){background:#fafafa;}
+        tr:hover{background:#f0f4ff;}
+        .status-returned{color:#27ae60;font-weight:700;}
+        .status-issued{color:#e67e22;font-weight:700;}
+        .badge-overdue{background:#ffe0e0;color:#c0392b;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}
+
+        /* ── Modal overlay ── */
+        .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;align-items:center;justify-content:center;}
+        .modal-overlay.open{display:flex;}
+        .modal{background:#fff;border-radius:12px;padding:30px 34px;width:420px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+        .modal h3{margin:0 0 20px;font-size:17px;color:#1a1a2e;}
+        .modal label{display:block;font-size:13px;font-weight:600;margin-bottom:4px;color:#444;}
+        .modal input,.modal select{width:100%;padding:10px 12px;margin-bottom:14px;border:1px solid #ddd;border-radius:6px;font-size:14px;outline:none;}
+        .modal input:focus,.modal select:focus{border-color:#1a1a2e;}
+        .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;}
+
+        /* ── Issue-to-user form ── */
+        .issue-form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;}
+
+        /* ── Responsive ── */
+        @media(max-width:900px){.dashboard{grid-template-columns:repeat(2,1fr);} table{display:block;overflow-x:auto;}}
+        @media(max-width:600px){.dashboard{grid-template-columns:1fr;} .navbar{flex-direction:column;gap:12px;}}
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════  NAVBAR  ═══════════════════════════ -->
+<div class="navbar">
+    <h2>📚 Library Management</h2>
+    <div>
+        <a href="/admin">Dashboard</a>
+        <a href="#books">Books</a>
+        <a href="#users">Users</a>
+        <a href="#issues">Issues</a>
+        <a href="#" onclick="logout()">Logout</a>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- ═══════  WELCOME  ═══════ -->
+    <div style="margin-bottom:22px;">
+        <h1 style="margin:0 0 4px;color:#1a1a2e;">Admin Dashboard</h1>
+        <p style="margin:0;color:#777;">Welcome back, <strong id="adminNameDisplay">Admin</strong>. Manage books, users, issues and returns.</p>
+    </div>
+
+    <!-- ═══════  STAT CARDS  ═══════ -->
+    <div class="dashboard">
+        <div class="card"><h3>Total Books</h3><p id="totalBooks">0</p></div>
+        <div class="card"><h3>Available Copies</h3><p id="availableBooks">0</p></div>
+        <div class="card"><h3>Currently Issued</h3><p id="issuedBooks">0</p></div>
+        <div class="card"><h3>Total Users</h3><p id="totalUsers">0</p></div>
+    </div>
+
+    <!-- ═══════  ADD BOOK  ═══════ -->
+    <div class="section" id="books">
+        <h2>➕ Add New Book</h2>
+        <input type="text"   id="newTitle"    placeholder="Book Title">
+        <input type="text"   id="newAuthor"   placeholder="Author">
+        <input type="text"   id="newIsbn"     placeholder="ISBN">
+        <input type="number" id="newQuantity" placeholder="Quantity" min="1">
+        <button class="btn btn-dark" onclick="addBook()">Add Book</button>
+    </div>
+
+    <!-- ═══════  BOOK MANAGEMENT  ═══════ -->
+    <div class="section">
+        <h2>📖 Book Management</h2>
+        <input type="text" id="searchBook" placeholder="🔍 Search by title, author or ISBN…" onkeyup="searchBooks()">
+        <table>
+            <thead><tr><th>ID</th><th>Title</th><th>Author</th><th>ISBN</th><th>Qty</th><th>Actions</th></tr></thead>
+            <tbody id="bookTableBody"></tbody>
+        </table>
+    </div>
+
+    <!-- ═══════  USER MANAGEMENT  ═══════ -->
+    <div class="section" id="users">
+        <h2>👤 User Management</h2>
+        <table>
+            <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+            <tbody id="userTableBody"></tbody>
+        </table>
+    </div>
+
+    <!-- ═══════  ISSUE BOOK TO USER (admin action)  ═══════ -->
+    <div class="section">
+        <h2>📤 Issue Book to User</h2>
+        <div class="issue-form">
+            <select id="issueUserId" style="width:220px;padding:10px;border:1px solid #ddd;border-radius:6px;"></select>
+            <select id="issueBookId" style="width:220px;padding:10px;border:1px solid #ddd;border-radius:6px;"></select>
+            <button class="btn btn-dark" onclick="adminIssueBook()">Issue</button>
+        </div>
+        <p id="issueMsg" style="font-size:13px;margin:4px 0 0;"></p>
+    </div>
+
+    <!-- ═══════  ISSUE & RETURN  ═══════ -->
+    <div class="section" id="issues">
+        <h2>🔄 Issue &amp; Return Management</h2>
+        <label style="font-size:13px;font-weight:600;color:#555;">
+            <input type="checkbox" id="overdueOnly" onchange="filterIssues()"> Show overdue only
+        </label>
+        <table>
+            <thead>
+                <tr>
+                    <th>Issue ID</th><th>User</th><th>Book</th>
+                    <th>Issued</th><th>Due</th><th>Returned</th>
+                    <th>Status</th><th>Fine</th><th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="issueTableBody"></tbody>
+        </table>
+    </div>
+
+</div>
+
+<!-- ═══════════════════════════  EDIT BOOK MODAL  ═══════════════════════════ -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <h3>✏️ Edit Book</h3>
+        <input type="hidden" id="editBookId">
+        <label>Title</label>
+        <input type="text" id="editTitle" placeholder="Book title">
+        <label>Author</label>
+        <input type="text" id="editAuthor" placeholder="Author">
+        <label>ISBN</label>
+        <input type="text" id="editIsbn" placeholder="ISBN">
+        <label>Quantity</label>
+        <input type="number" id="editQuantity" placeholder="Quantity" min="0">
+        <div class="modal-actions">
+            <button class="btn btn-danger" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-dark"   onclick="saveBook()">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  AUTH GUARD
+// ══════════════════════════════════════════════════════════════
+const _role = localStorage.getItem("userRole");
+const _name = localStorage.getItem("userName");
+if (!_role || _role !== "ADMIN") {
+    alert("Access denied. Please login as admin.");
+    window.location.href = "/login";
+}
+if (_name) document.getElementById("adminNameDisplay").textContent = _name;
+
+// ══════════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════════
+let allBooks  = [];
+let allIssues = [];
+
+// ══════════════════════════════════════════════════════════════
+//  LOAD DASHBOARD
+// ══════════════════════════════════════════════════════════════
+function loadDashboard() {
+    fetch("/books")
+        .then(r => r.json())
+        .then(books => {
+            allBooks = books;
+            document.getElementById("totalBooks").textContent = books.length;
+            const avail = books.reduce((s, b) => s + b.quantity, 0);
+            document.getElementById("availableBooks").textContent = avail;
+            displayBooks(books);
+            populateBookDropdown(books);
+        })
+        .catch(e => console.error("Books:", e));
+
+    fetch("/users")
+        .then(r => r.json())
+        .then(users => {
+            document.getElementById("totalUsers").textContent = users.length;
+            displayUsers(users);
+            populateUserDropdown(users);
+        })
+        .catch(e => console.error("Users:", e));
+
+    loadIssues();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  BOOKS
+// ══════════════════════════════════════════════════════════════
+function displayBooks(books) {
+    const tbody = document.getElementById("bookTableBody");
+    tbody.innerHTML = "";
+    books.forEach(book => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${book.id}</td>
+            <td>${book.title}</td>
+            <td>${book.author}</td>
+            <td>${book.isbn}</td>
+            <td>${book.quantity}</td>
+            <td>
+                <button class="btn btn-warn" onclick="openEditModal(${book.id})">Edit</button>
+                <button class="btn btn-danger" onclick="deleteBook(${book.id})">Delete</button>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function searchBooks() {
+    const q = document.getElementById("searchBook").value.toLowerCase();
+    displayBooks(allBooks.filter(b =>
+        b.title.toLowerCase().includes(q) ||
+        b.author.toLowerCase().includes(q) ||
+        b.isbn.toLowerCase().includes(q)
+    ));
+}
+
+function addBook() {
+    const title    = document.getElementById("newTitle").value.trim();
+    const author   = document.getElementById("newAuthor").value.trim();
+    const isbn     = document.getElementById("newIsbn").value.trim();
+    const quantity = document.getElementById("newQuantity").value;
+    if (!title || !author || !isbn || !quantity) { alert("Please fill all fields."); return; }
+
+    fetch("/books", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, author, isbn, quantity: parseInt(quantity) })
+    })
+    .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t); }); return r.json(); })
+    .then(() => {
+        alert("Book added successfully!");
+        ["newTitle","newAuthor","newIsbn","newQuantity"].forEach(id => document.getElementById(id).value = "");
+        loadDashboard();
+    })
+    .catch(e => alert("Failed to add book: " + e.message));
+}
+
+function deleteBook(id) {
+    if (!confirm("Delete this book permanently?")) return;
+    fetch(`/books/${id}`, { method: "DELETE" })
+        .then(r => r.text())
+        .then(msg => { alert(msg); loadDashboard(); })
+        .catch(() => alert("Failed to delete book."));
+}
+
+// ══════════════════════════════════════════════════════════════
+//  EDIT MODAL
+// ══════════════════════════════════════════════════════════════
+function openEditModal(id) {
+    const book = allBooks.find(b => b.id === id);
+    if (!book) return;
+    document.getElementById("editBookId").value   = book.id;
+    document.getElementById("editTitle").value    = book.title;
+    document.getElementById("editAuthor").value   = book.author;
+    document.getElementById("editIsbn").value     = book.isbn;
+    document.getElementById("editQuantity").value = book.quantity;
+    document.getElementById("editModal").classList.add("open");
+}
+
+function closeModal() {
+    document.getElementById("editModal").classList.remove("open");
+}
+
+// Close modal on backdrop click
+document.getElementById("editModal").addEventListener("click", function(e) {
+    if (e.target === this) closeModal();
+});
+
+function saveBook() {
+    const id       = document.getElementById("editBookId").value;
+    const title    = document.getElementById("editTitle").value.trim();
+    const author   = document.getElementById("editAuthor").value.trim();
+    const isbn     = document.getElementById("editIsbn").value.trim();
+    const quantity = document.getElementById("editQuantity").value;
+    if (!title || !author || !isbn || quantity === "") { alert("All fields are required."); return; }
+
+    fetch(`/books/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, author, isbn, quantity: parseInt(quantity) })
+    })
+    .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t); }); return r.json(); })
+    .then(() => { closeModal(); loadDashboard(); })
+    .catch(e => alert("Failed to update: " + e.message));
+}
+
+// ══════════════════════════════════════════════════════════════
+//  USERS
+// ══════════════════════════════════════════════════════════════
+function displayUsers(users) {
+    const tbody = document.getElementById("userTableBody");
+    tbody.innerHTML = "";
+    users.forEach(user => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${user.id}</td>
+            <td>${user.name}</td>
+            <td>${user.email}</td>
+            <td>${user.role}</td>
+            <td>
+                <button class="btn btn-danger" onclick="deleteUser(${user.id}, '${user.name}')">Delete</button>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function deleteUser(id, name) {
+    if (!confirm(`Delete user "${name}"? This cannot be undone.`)) return;
+    fetch(`/admin/users/${id}`, { method: "DELETE" })
+        .then(r => r.text())
+        .then(msg => { alert(msg); loadDashboard(); })
+        .catch(() => alert("Failed to delete user."));
+}
+
+function populateUserDropdown(users) {
+    const sel = document.getElementById("issueUserId");
+    sel.innerHTML = `<option value="">— Select User —</option>`;
+    users.forEach(u => {
+        const opt = document.createElement("option");
+        opt.value = u.id;
+        opt.textContent = `${u.name} (${u.email})`;
+        sel.appendChild(opt);
+    });
+}
+
+function populateBookDropdown(books) {
+    const sel = document.getElementById("issueBookId");
+    sel.innerHTML = `<option value="">— Select Book —</option>`;
+    books.filter(b => b.quantity > 0).forEach(b => {
+        const opt = document.createElement("option");
+        opt.value = b.id;
+        opt.textContent = `${b.title} (qty: ${b.quantity})`;
+        sel.appendChild(opt);
+    });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ADMIN ISSUE BOOK TO USER
+// ══════════════════════════════════════════════════════════════
+function adminIssueBook() {
+    const userId = document.getElementById("issueUserId").value;
+    const bookId = document.getElementById("issueBookId").value;
+    const msg = document.getElementById("issueMsg");
+
+    if (!userId || !bookId) {
+        msg.style.color = "red";
+        msg.textContent = "Please select a user and a book.";
+        return;
+    }
+
+    fetch(`/issues/issue?userId=${userId}&bookId=${bookId}`, {
+        method: "POST"
+    })
+    .then(r => {
+        if (!r.ok) {
+            return r.text().then(t => {
+                throw new Error(t);
+            });
+        }
+
+        return r.json();
+    })
+    .then(() => {
+        msg.style.color = "green";
+        msg.textContent = "Book issued successfully!";
+        loadDashboard();
+    })
+    .catch(e => {
+        msg.style.color = "red";
+        msg.textContent = e.message;
+    });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ISSUES
+// ══════════════════════════════════════════════════════════════
+function loadIssues() {
+    fetch("/issues")
+        .then(r => r.json())
+        .then(issues => {
+            allIssues = issues;
+            document.getElementById("issuedBooks").textContent =
+                issues.filter(i => i.status === "ISSUED").length;
+            renderIssues(issues);
+        })
+        .catch(e => console.error("Issues:", e));
+}
+
+function filterIssues() {
+    const overdueOnly = document.getElementById("overdueOnly").checked;
+    const today = new Date().toISOString().split("T")[0];
+    const filtered = overdueOnly
+        ? allIssues.filter(i => i.status === "ISSUED" && i.dueDate < today)
+        : allIssues;
+    renderIssues(filtered);
+}
+
+function renderIssues(issues) {
+    const tbody = document.getElementById("issueTableBody");
+    tbody.innerHTML = "";
+    const today = new Date().toISOString().split("T")[0];
+
+    issues.forEach(issue => {
+        const isOverdue = issue.status === "ISSUED" && issue.dueDate < today;
+        const statusClass = issue.status === "RETURNED" ? "status-returned" : "status-issued";
+        const action = issue.status === "ISSUED"
+            ? `<button class="btn btn-success" onclick="returnBook(${issue.id})">Return</button>`
+            : "—";
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${issue.id}</td>
+            <td>${issue.userName}</td>
+            <td>${issue.bookTitle}</td>
+            <td>${issue.issueDate}</td>
+            <td>${issue.dueDate}${isOverdue ? ' <span class="badge-overdue">OVERDUE</span>' : ''}</td>
+            <td>${issue.returnDate || "—"}</td>
+            <td class="${statusClass}">${issue.status}</td>
+            <td>₹${issue.fine.toFixed(2)}</td>
+            <td>${action}</td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function returnBook(issueId) {
+    if (!confirm("Mark this book as returned?")) return;
+    fetch(`/issues/return/${issueId}`, { method: "PUT" })
+        .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+        .then(() => { alert("Book returned successfully!"); loadDashboard(); })
+        .catch(() => alert("Failed to return book."));
+}
+
+// ══════════════════════════════════════════════════════════════
+//  LOGOUT
+// ══════════════════════════════════════════════════════════════
+async function logout() {
+    try { await fetch("/users/logout", { method: "POST" }); } catch(e) {}
+    localStorage.clear();
+    window.location.href = "/login";
+}
+
+// ══════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════
+loadDashboard();
+</script>
+</body>
+</html>

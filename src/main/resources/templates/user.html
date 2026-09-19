@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard - Library Management</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        *{box-sizing:border-box;}
+        body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;}
+
+        /* ── Navbar ── */
+        .navbar{background:#1a1a2e;padding:14px 30px;display:flex;justify-content:space-between;align-items:center;}
+        .navbar h2{color:#e0e0e0;margin:0;font-size:20px;}
+        .navbar a{color:#aaa;text-decoration:none;margin-left:22px;font-size:14px;transition:color .2s;}
+        .navbar a:hover{color:#fff;}
+
+        /* ── Layout ── */
+        .container{width:92%;max-width:1200px;margin:28px auto;}
+
+        /* ── Cards ── */
+        .dashboard{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:28px;}
+        .card{background:#fff;padding:24px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08);text-align:center;}
+        .card h3{margin:0 0 8px;font-size:13px;color:#777;text-transform:uppercase;letter-spacing:.5px;}
+        .card p{font-size:32px;font-weight:700;margin:0;color:#1a1a2e;}
+
+        /* ── Section panels ── */
+        .section{background:#fff;padding:26px 28px;margin-bottom:28px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08);}
+        .section h2{margin:0 0 14px;font-size:17px;color:#1a1a2e;border-bottom:2px solid #f0f0f0;padding-bottom:10px;}
+
+        /* ── Search bar ── */
+        .search-bar{display:flex;gap:10px;margin-bottom:14px;}
+        .search-bar input{flex:1;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-size:14px;outline:none;}
+        .search-bar input:focus{border-color:#1a1a2e;}
+
+        /* ── Tables ── */
+        table{width:100%;border-collapse:collapse;}
+        th,td{border:1px solid #e8e8e8;padding:11px 13px;text-align:center;font-size:13px;}
+        th{background:#1a1a2e;color:#fff;font-weight:600;}
+        tr:nth-child(even){background:#fafafa;}
+        tr:hover{background:#f0f4ff;}
+
+        /* ── Buttons ── */
+        .btn{padding:8px 15px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:opacity .2s;}
+        .btn:hover{opacity:.85;}
+        .btn-dark{background:#1a1a2e;color:#fff;}
+        .btn-return{background:#5cb85c;color:#fff;}
+        .btn-unavail{background:#ccc;color:#666;cursor:not-allowed;}
+
+        .status-issued{color:#e67e22;font-weight:700;}
+        .status-returned{color:#27ae60;font-weight:700;}
+        .fine-cell{font-weight:700;}
+        .fine-due{color:#c0392b;}
+
+        /* ── Empty state ── */
+        .empty-msg{text-align:center;color:#aaa;padding:20px;font-size:14px;}
+
+        @media(max-width:900px){.dashboard{grid-template-columns:1fr;} table{display:block;overflow-x:auto;}}
+        @media(max-width:600px){.navbar{flex-direction:column;gap:12px;}}
+    </style>
+</head>
+<body>
+
+<!-- ═══  NAVBAR  ═══ -->
+<div class="navbar">
+    <h2>📚 Library Management</h2>
+    <div>
+        <a href="/user">Dashboard</a>
+        <a href="#books">Books</a>
+        <a href="#myIssues">My Issues</a>
+        <a href="#" onclick="logout()">Logout</a>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- ═══  WELCOME  ═══ -->
+    <div style="margin-bottom:22px;">
+        <h1 style="margin:0 0 4px;color:#1a1a2e;">Welcome, <span id="userName">User</span></h1>
+        <p style="margin:0;color:#777;">Browse books, issue them, and track your returns here.</p>
+    </div>
+
+    <!-- ═══  STAT CARDS  ═══ -->
+    <div class="dashboard">
+        <div class="card"><h3>Available Copies</h3><p id="availableBooks">0</p></div>
+        <div class="card"><h3>My Issued Books</h3><p id="myIssuedBooks">0</p></div>
+        <div class="card"><h3>My Total Fine</h3><p style="font-size:24px;">₹<span id="myTotalFine">0.00</span></p></div>
+    </div>
+
+    <!-- ═══  AVAILABLE BOOKS  ═══ -->
+    <div class="section" id="books">
+        <h2>📖 Available Books</h2>
+        <div class="search-bar">
+            <input type="text" id="bookSearch" placeholder="🔍 Search by title or author…" oninput="filterBooks()">
+        </div>
+        <table>
+            <thead>
+                <tr><th>ID</th><th>Title</th><th>Author</th><th>ISBN</th><th>Available</th><th>Action</th></tr>
+            </thead>
+            <tbody id="bookTableBody"></tbody>
+        </table>
+    </div>
+
+    <!-- ═══  MY ISSUES  ═══ -->
+    <div class="section" id="myIssues">
+        <h2>🔄 My Issued Books</h2>
+        <table>
+            <thead>
+                <tr><th>Issue ID</th><th>Book</th><th>Issued</th><th>Due</th><th>Returned</th><th>Status</th><th>Fine</th><th>Action</th></tr>
+            </thead>
+            <tbody id="issueTableBody"></tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  AUTH GUARD
+// ══════════════════════════════════════════════════════════
+const userId   = localStorage.getItem("userId");
+const userName = localStorage.getItem("userName");
+const userRole = localStorage.getItem("userRole");
+
+if (!userId || userRole !== "USER") {
+    alert("Please login as a user.");
+    window.location.href = "/login";
+}
+if (userName) document.getElementById("userName").textContent = userName;
+
+// ══════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════
+let allBooks = [];
+
+// ══════════════════════════════════════════════════════════
+//  BOOKS
+// ══════════════════════════════════════════════════════════
+function loadBooks() {
+    fetch("/books")
+        .then(r => r.json())
+        .then(books => {
+            allBooks = books;
+            const totalAvail = books.reduce((s, b) => s + b.quantity, 0);
+            document.getElementById("availableBooks").textContent = totalAvail;
+            renderBooks(books);
+        })
+        .catch(e => console.error("Books error:", e));
+}
+
+function filterBooks() {
+    const q = document.getElementById("bookSearch").value.toLowerCase();
+    renderBooks(allBooks.filter(b =>
+        b.title.toLowerCase().includes(q) ||
+        b.author.toLowerCase().includes(q)
+    ));
+}
+
+function renderBooks(books) {
+    const tbody = document.getElementById("bookTableBody");
+    tbody.innerHTML = "";
+
+    if (books.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="empty-msg">No books match your search.</td></tr>`;
+        return;
+    }
+
+    books.forEach(book => {
+        const tr = document.createElement("tr");
+        const action = book.quantity > 0
+            ? `<button class="btn btn-dark" onclick="issueBook(${book.id})">Issue</button>`
+            : `<span class="btn btn-unavail">Not Available</span>`;
+        tr.innerHTML = `
+            <td>${book.id}</td>
+            <td>${book.title}</td>
+            <td>${book.author}</td>
+            <td>${book.isbn}</td>
+            <td>${book.quantity}</td>
+            <td>${action}</td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+// ══════════════════════════════════════════════════════════
+//  ISSUE A BOOK
+// ══════════════════════════════════════════════════════════
+function issueBook(bookId) {
+    if (!confirm("Do you want to issue this book?")) return;
+
+    fetch(`/issues/issue?userId=${userId}&bookId=${bookId}`, { method: "POST" })
+        .then(r => {
+            if (!r.ok) return r.text().then(t => { throw new Error(t); });
+            return r.json();
+        })
+        .then(() => {
+            alert("Book issued successfully! Due in 7 days.");
+            loadBooks();
+            loadMyIssues();
+        })
+        .catch(e => alert(e.message || "Could not issue book."));
+}
+
+// ══════════════════════════════════════════════════════════
+//  MY ISSUES
+// ══════════════════════════════════════════════════════════
+function loadMyIssues() {
+    fetch(`/issues/user/${userId}`)
+        .then(r => r.json())
+        .then(issues => {
+            const tbody = document.getElementById("issueTableBody");
+            tbody.innerHTML = "";
+            let issuedCount = 0;
+            let totalFine   = 0;
+            const today = new Date().toISOString().split("T")[0];
+
+            if (issues.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="empty-msg">You have no issued books.</td></tr>`;
+            }
+
+            issues.forEach(issue => {
+                issuedCount += issue.status === "ISSUED" ? 1 : 0;
+                totalFine   += issue.fine;
+
+                const isOverdue = issue.status === "ISSUED" && issue.dueDate < today;
+                const statusClass = issue.status === "ISSUED" ? "status-issued" : "status-returned";
+                const fineClass   = issue.fine > 0 ? "fine-cell fine-due" : "fine-cell";
+                const action      = issue.status === "ISSUED"
+                    ? `<button class="btn btn-return" onclick="returnBook(${issue.id})">Return</button>`
+                    : "—";
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${issue.id}</td>
+                    <td>${issue.bookTitle}</td>
+                    <td>${issue.issueDate}</td>
+                    <td style="color:${isOverdue ? '#c0392b' : 'inherit'};font-weight:${isOverdue ? 700 : 400}">${issue.dueDate}</td>
+                    <td>${issue.returnDate || "—"}</td>
+                    <td class="${statusClass}">${issue.status}${isOverdue ? ' ⚠️' : ''}</td>
+                    <td class="${fineClass}">₹${issue.fine.toFixed(2)}</td>
+                    <td>${action}</td>`;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById("myIssuedBooks").textContent = issuedCount;
+            document.getElementById("myTotalFine").textContent   = totalFine.toFixed(2);
+        })
+        .catch(e => console.error("Issues error:", e));
+}
+
+// ══════════════════════════════════════════════════════════
+//  RETURN
+// ══════════════════════════════════════════════════════════
+function returnBook(issueId) {
+    if (!confirm("Return this book?")) return;
+    fetch(`/issues/return/${issueId}`, { method: "PUT" })
+        .then(r => {
+            if (!r.ok) return r.text().then(t => { throw new Error(t); });
+            return r.json();
+        })
+        .then(data => {
+            const msg = data.fine > 0
+                ? `Book returned. Fine applied: ₹${data.fine.toFixed(2)}`
+                : "Book returned successfully. No fine.";
+            alert(msg);
+            loadBooks();
+            loadMyIssues();
+        })
+        .catch(e => alert(e.message || "Could not return book."));
+}
+
+// ══════════════════════════════════════════════════════════
+//  LOGOUT
+// ══════════════════════════════════════════════════════════
+async function logout() {
+    try { await fetch("/users/logout", { method: "POST" }); } catch(e) {}
+    localStorage.clear();
+    window.location.href = "/login";
+}
+
+// ══════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════
+loadBooks();
+loadMyIssues();
+</script>
+</body>
+</html>
