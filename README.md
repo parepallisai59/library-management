@@ -2,6 +2,14 @@
 
 A full-stack Library Management System built using Java, Spring Boot, Spring Security, MySQL, JPA/Hibernate, Thymeleaf, HTML, CSS, and JavaScript.
 
+## 🌐 Live Demo
+
+🚀 **Live Application:**  
+https://library-management-1-ty4o.onrender.com
+
+> Note: The application is deployed on Render using Docker and uses TiDB Cloud as the production database.
+
+
 ## Features
 
 * User registration and login
